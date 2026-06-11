@@ -7,6 +7,7 @@ import '../../../../shared/widgets/status_pill.dart';
 import '../../domain/entities/parking_session.dart';
 import '../providers/parking_provider.dart';
 import 'session_filter.dart';
+import 'session_ticket_screen.dart';
 
 class HistoryScreen extends StatefulWidget {
   const HistoryScreen({super.key});
@@ -203,6 +204,12 @@ class _HistoryScreenState extends State<HistoryScreen>
           margin: const EdgeInsets.only(bottom: 10),
           padding: const EdgeInsets.all(14),
           radius: 14,
+          onTap: () => Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (_) => SessionTicketScreen(session: session),
+            ),
+          ),
           child: Row(
             children: [
               IconBadge(

@@ -14,6 +14,7 @@ import 'manual_entry_screen.dart';
 import 'plate_scan_mode.dart';
 import 'scanner_screen.dart';
 import 'session_filter.dart';
+import 'session_ticket_screen.dart';
 import 'settings_screen.dart';
 
 class DashboardScreen extends StatefulWidget {
@@ -807,6 +808,12 @@ class _DashboardBodyState extends State<_DashboardBody> {
         final session = sessions[index];
         return AppCard(
           isDark: isDark,
+          onTap: () => Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (_) => SessionTicketScreen(session: session),
+            ),
+          ),
           child: Row(
             children: [
               const IconBadge(

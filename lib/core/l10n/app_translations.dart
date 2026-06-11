@@ -82,7 +82,9 @@ class AppColors {
   static const Color primaryPink = primary;
   static const Color primaryPurple = secondary;
 
-  static const Color backgroundLight = Color(0xFFF8F9FA);
+  // A clear cool-grey (not near-white) so white [surfaceLight] cards have a
+  // visible edge against the background in light theme.
+  static const Color backgroundLight = Color(0xFFEAEEF4);
   static const Color surfaceLight = Color(0xFFFFFFFF);
   static const Color textPrimaryDark = Colors.white;
   static const Color textPrimaryLight = Color(0xFF1A1A2E);
