@@ -1,0 +1,8 @@
+{
+  "permissions": {
+    "allow": [
+      "PowerShell($nb = Get-Content \"d:\\\\GP\\\\gp_app\\\\ealpr-v4.ipynb\" -Raw | ConvertFrom-Json; for \\($i=5; $i -le 8; $i++\\) { Write-Output \"##### CELL $i #####\"; \\($nb.cells[$i].source -join ''\\) })",
+      "PowerShell(flutter analyze)"
+    ]
+  }
+}
