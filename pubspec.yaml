@@ -30,9 +30,18 @@ dev_dependencies:
   flutter_test:
     sdk: flutter
   flutter_lints: ^6.0.0
+  flutter_launcher_icons: ^0.14.1
 
 flutter:
   assets:
     - assets/plate_detection.tflite
     - assets/plate_ocr.tflite
   uses-material-design: true
+
+# App launcher icon. Put your icon (square PNG, ideally 1024x1024) at the
+# image_path below, then run:  dart run flutter_launcher_icons
+flutter_launcher_icons:
+  android: true
+  ios: false
+  image_path: "assets/icon/app_icon.png"
+  min_sdk_android: 21

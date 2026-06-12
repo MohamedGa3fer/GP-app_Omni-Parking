@@ -226,47 +226,33 @@ class _OcrEngine {
     debugPrint(
         'OCR input contract OK: shape=$shape dtype=${input.type} float32=$_ocrIsFloat32 scale=$_ocrInputScale zeroPoint=$_ocrInputZeroPoint');
 
+    // EALPR V6 output shapes are all distinct, so map each head directly by
+    // shape: digits [1,4,11], letters [1,3,18] ('ي' removed, was 19), digit
+    // length [1,4] (was [1,2]) and letter length [1,3] (was [1,2]).
     int? digitLogits;
     int? letterLogits;
-    final lengthIndices = <int>[];
+    int? digitLen;
+    int? letterLen;
     final outputs = _ocrInterpreter!.getOutputTensors();
     for (int i = 0; i < outputs.length; i++) {
       final s = outputs[i].shape;
       if (_shapeEquals(s, const [1, 4, 11])) {
         digitLogits = i;
-      } else if (_shapeEquals(s, const [1, 3, 19])) {
+      } else if (_shapeEquals(s, const [1, 3, 18])) {
         letterLogits = i;
-      } else if (_shapeEquals(s, const [1, 2])) {
-        lengthIndices.add(i);
+      } else if (_shapeEquals(s, const [1, 4])) {
+        digitLen = i;
+      } else if (_shapeEquals(s, const [1, 3])) {
+        letterLen = i;
       }
     }
 
     if (digitLogits == null ||
         letterLogits == null ||
-        lengthIndices.length != 2) {
+        digitLen == null ||
+        letterLen == null) {
       throw StateError(
-          'OCR output mapping failed. Need [1,4,11], [1,3,19], and two [1,2] heads.');
-    }
-
-    int? digitLen;
-    int? letterLen;
-    for (final idx in lengthIndices) {
-      final n = outputs[idx].name.toLowerCase();
-      if (n.contains('digit_len') ||
-          n.contains('digitlen') ||
-          n.contains('output_2')) {
-        digitLen = idx;
-      } else if (n.contains('letter_len') ||
-          n.contains('letterlen') ||
-          n.contains('output_3')) {
-        letterLen = idx;
-      }
-    }
-    if (digitLen == null || letterLen == null) {
-      lengthIndices.sort();
-      digitLen ??= lengthIndices.first;
-      letterLen ??= lengthIndices.last;
-      debugPrint('OCR length heads disambiguated by index (names ambiguous).');
+          'OCR output mapping failed. Need [1,4,11], [1,3,18], [1,4], [1,3].');
     }
 
     _digitLogitsIdx = digitLogits;
@@ -331,11 +317,11 @@ class _OcrEngine {
         digitLogits: _chunk(
             Float32List.view(dB.buffer, dB.offsetInBytes, 4 * 11), 11),
         letterLogits: _chunk(
-            Float32List.view(lB.buffer, lB.offsetInBytes, 3 * 19), 19),
+            Float32List.view(lB.buffer, lB.offsetInBytes, 3 * 18), 18),
         digitLenLogits:
-            Float32List.view(dlB.buffer, dlB.offsetInBytes, 2).toList(),
+            Float32List.view(dlB.buffer, dlB.offsetInBytes, 4).toList(),
         letterLenLogits:
-            Float32List.view(llB.buffer, llB.offsetInBytes, 2).toList(),
+            Float32List.view(llB.buffer, llB.offsetInBytes, 3).toList(),
       );
     } else {
       // int8 model: quantized input, quantized outputs dequantized before decode.
@@ -344,9 +330,9 @@ class _OcrEngine {
       final raw0 =
           List.generate(1, (_) => List.generate(4, (_) => List.filled(11, 0)));
       final raw1 =
-          List.generate(1, (_) => List.generate(3, (_) => List.filled(19, 0)));
-      final raw2 = List.generate(1, (_) => List.filled(2, 0));
-      final raw3 = List.generate(1, (_) => List.filled(2, 0));
+          List.generate(1, (_) => List.generate(3, (_) => List.filled(18, 0)));
+      final raw2 = List.generate(1, (_) => List.filled(4, 0));
+      final raw3 = List.generate(1, (_) => List.filled(3, 0));
       _ocrInterpreter!.runForMultipleInputs([ocrInput], {
         _digitLogitsIdx: raw0,
         _letterLogitsIdx: raw1,
@@ -474,15 +460,18 @@ class _OcrEngine {
 
     int bestIdx = -1;
     double bestConf = _confidenceThreshold;
+    double maxConf = 0.0; // highest score seen, even below threshold (debug)
     for (int i = 0; i < n; i++) {
       final c = out[confBase + i];
+      if (c > maxConf) maxConf = c;
       if (c > bestConf) {
         bestConf = c;
         bestIdx = i;
       }
     }
     if (bestIdx < 0) {
-      debugPrint('YOLO: no detection above threshold $_confidenceThreshold');
+      debugPrint(
+          'YOLO: no detection above threshold $_confidenceThreshold (max seen=${maxConf.toStringAsFixed(3)})');
       return null;
     }
 
@@ -518,20 +507,19 @@ class _OcrEngine {
         x: cropX, y: cropY, width: cropW, height: cropH);
   }
 
-  // Character maps from the EALPR V4 hand-off guide.
-  // NOTE: positions 9–17 of `_arabicLetters` are reconstructed from context —
-  // the teammate's guide arrived UTF-8 mojibake'd (all showed 'Ù'). Order
-  // assumed: standard Egyptian-plate Arabic letter sequence. VERIFY with the
-  // model author before relying on OCR results for billing.
+  // Character maps for EALPR V6. The 17-letter order is the authoritative
+  // sequence from the V6 migration report (model author): the letter 'ي' was
+  // scrubbed to match the official Egyptian standard, so the alphabet is now
+  // 17 letters + PAD (PAD index 17, letter head shape [1,3,18]).
   static const List<String> _digits = [
     '0', '1', '2', '3', '4', '5', '6', '7', '8', '9'
   ];
   static const List<String> _arabicLetters = [
     'أ', 'ب', 'ج', 'د', 'ر', 'س', 'ص', 'ط', 'ع',
-    'ف', 'ق', 'ك', 'ل', 'م', 'ن', 'ه', 'و', 'ي',
+    'ف', 'ق', 'ك', 'ل', 'م', 'ن', 'ه', 'و',
   ];
   static const int _digitPadClass = 10;
-  static const int _letterPadClass = 18;
+  static const int _letterPadClass = 17;
 
   /// Decodes the four PlateSlotTransformer outputs into a structured result.
   _OcrResult _decodePlate({
@@ -540,8 +528,9 @@ class _OcrEngine {
     required List<double> digitLenLogits,
     required List<double> letterLenLogits,
   }) {
-    final digitLength = _argmaxDouble(digitLenLogits) + 3; // 0→3, 1→4
-    final letterLength = _argmaxDouble(letterLenLogits) + 2; // 0→2, 1→3
+    // V6 length heads are zero-indexed from length 1 (unified argmax + 1).
+    final digitLength = _argmaxDouble(digitLenLogits) + 1; // 0→1 … 3→4
+    final letterLength = _argmaxDouble(letterLenLogits) + 1; // 0→1 … 2→3
 
     final digitChars = StringBuffer();
     final letterChars = StringBuffer();
@@ -583,10 +572,11 @@ class _OcrEngine {
     final reversedLetters = letterChars.toString().split('').reversed.join();
     final text = '${digitChars.toString()}$reversedLetters';
     final confidence = confCount == 0 ? 0.0 : confSum / confCount;
+    // V6 supports 1–4 digits and 1–3 letters (was locked to 3–4 / 2–3 in V4).
     final isValid = !hasPad &&
-        digitLength >= 3 &&
+        digitLength >= 1 &&
         digitLength <= 4 &&
-        letterLength >= 2 &&
+        letterLength >= 1 &&
         letterLength <= 3 &&
         digitChars.length == digitLength &&
         letterChars.length == letterLength;

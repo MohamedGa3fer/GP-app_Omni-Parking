@@ -12,8 +12,6 @@ class CameraCaptureScreen extends StatefulWidget {
 
 class _CameraCaptureScreenState extends State<CameraCaptureScreen> {
   String? _pendingPath;
-  double _zoomLevel = 1.0;
-  static const List<double> _zoomSteps = [1.0, 1.5, 2.0, 3.0];
 
   // Drives the capture overlay. A ValueNotifier (not setState) so only the
   // overlay rebuilds — rebuilding CameraAwesomeBuilder would reset the camera.
@@ -111,14 +109,9 @@ class _CameraCaptureScreenState extends State<CameraCaptureScreen> {
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  // Zoom selector
-                  _ZoomBar(
-                    state: state,
-                    currentZoom: _zoomLevel,
-                    zoomSteps: _zoomSteps,
-                    onZoomChanged: (z) => setState(() => _zoomLevel = z),
-                  ),
-                  const SizedBox(height: 20),
+                  // No zoom bar: camerawesome's zoom is digital (crop + upscale),
+                  // which softens the image and costs plate detections. We shoot
+                  // at the native lens; the device has no optical zoom to expose.
                   // Flip + Capture row
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceEvenly,
@@ -270,69 +263,6 @@ class _FlashMenuButtonState extends State<_FlashMenuButton> {
           shape: BoxShape.circle,
         ),
         child: Icon(_icon, color: Colors.white, size: 22),
-      ),
-    );
-  }
-}
-
-// ── Zoom bar ──────────────────────────────────────────────────────────────────
-
-class _ZoomBar extends StatelessWidget {
-  final CameraState state;
-  final double currentZoom;
-  final List<double> zoomSteps;
-  final ValueChanged<double> onZoomChanged;
-
-  const _ZoomBar({
-    required this.state,
-    required this.currentZoom,
-    required this.zoomSteps,
-    required this.onZoomChanged,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-      decoration: BoxDecoration(
-        color: Colors.black.withValues(alpha: 0.5),
-        borderRadius: BorderRadius.circular(30),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: zoomSteps.map((z) {
-          final selected = currentZoom == z;
-          return GestureDetector(
-            onTap: () {
-              onZoomChanged(z);
-              state.when(
-                onPhotoMode: (s) => s.sensorConfig.setZoom(
-                  // camerawesome zoom is 0.0–1.0; map our step to that range
-                  ((z - 1.0) / (zoomSteps.last - 1.0)).clamp(0.0, 1.0),
-                ),
-              );
-            },
-            child: AnimatedContainer(
-              duration: const Duration(milliseconds: 180),
-              margin: const EdgeInsets.symmetric(horizontal: 4),
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-              decoration: BoxDecoration(
-                color: selected
-                    ? AppColors.primary
-                    : Colors.white.withValues(alpha: 0.1),
-                borderRadius: BorderRadius.circular(20),
-              ),
-              child: Text(
-                z == z.truncateToDouble() ? '${z.toInt()}x' : '${z}x',
-                style: TextStyle(
-                  color: selected ? Colors.white : Colors.white70,
-                  fontSize: 13,
-                  fontWeight: selected ? FontWeight.bold : FontWeight.normal,
-                ),
-              ),
-            ),
-          );
-        }).toList(),
       ),
     );
   }

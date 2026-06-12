@@ -271,3 +271,40 @@ The dead duplicate set was deleted; these are the **used** ones (extracted to ki
 - **Soft:** tune `_minOcrConfidence` (0.60); dashboard search bar & Notifications are display-only placeholders.
 - **Optional:** run `clean_history_days` on startup too; cap camera capture resolution (camerawesome 2.5 has no API for it — would need the `camera` package).
 - **No git repo yet** — standalone project.
+
+---
+
+## 18. Change Log (append-only chat history)
+
+> This is a cumulative history of work done in chat sessions. **Append only** —
+> add new dated entries; never overwrite or remove older ones, even if a later
+> change makes an earlier note outdated. Sections 1–17 above are the original
+> project guide and are intentionally left as-is.
+
+### Session — 2026-06-12
+
+1. **Zone Selection fixes** — Cards show the zone NAME (not the raw id); the confirm button shows the selected zone's name (was "Confirm Zone null").
+2. **App-wide date/time format** — Added `formatDate()` (dd/mm/yyyy) and `formatTime()` (12-hour + localized AM/PM, keys `time_am`/`time_pm`) in `app_translations.dart`; applied across dashboard, checkout, history, tickets.
+3. **Entry ticket** — Removed the QR code; made it theme-aware; uses the new 12-hour/dd-mm-yyyy formatting.
+4. **Checkout ticket (new `CheckoutTicketScreen`)** — Shows entry+exit date/time, duration, total fee. **Payment deferred:** opens payment-due ("Amount Due", "Awaiting payment", Confirm Payment); the checkout only commits on payment confirmation, then flips to the paid state ("Checkout successful", Total Fee, Done). `checkOut` now returns the completed `ParkingSession` through repo→provider; `Done`/back route home via `pushAndRemoveUntil`.
+5. **Payment QR** — Settings → Garage → Payment QR: merchant uploads a QR image from gallery (`image_picker` → copied to app docs dir; path in SharedPreferences `payment_qr_path`). Rendered on the checkout payment-due state ("Scan to pay"). Optional — hidden if unset.
+6. **Bottom-sheet overflow fixes** — Payment-QR sheet and Car-Entry sheet made `isScrollControlled` + scrollable + `SafeArea`.
+7. **Scan Plate sheet restructure** — Renamed options ("Scan Plate", "Enter Plate Manually"); added a **Car Exit** section whose Scan Plate scans → searches active sessions → goes straight to the checkout ticket. Added `PlateScanMode { entry, exit }`; `ScannerScreen` + `PlateVerificationSheet` take a `mode`. Exit not-found shows an inline error.
+8. **Duplicate-on-entry → Check Out** — Scanning an already-parked plate in entry mode shows a green "Check Out" button that jumps to that car's checkout ticket.
+9. **Light-mode visibility (text)** — Fixed white-on-light text: dashboard "Recent Activity" title + session plate; verification-sheet Cancel button.
+10. **Recent Activity filter** — Dashboard dropdown (All/Active/Completed) next to the title. Extracted shared `SessionFilter` enum + `SessionFilterMenu` widget (in `session_filter.dart`); dashboard refactored to use them. Added `popupMenuTheme` to both themes.
+11. **History filter + search** — Same `SessionFilter` dropdown + a Search-by-plate box in History, applied to both Today/All tabs.
+12. **Bidi display fix** — Added `bidiIsolate()` (FSI…PDI) wrapping the Arabic zone name in checkout/history subtitles so the "Zone … - time" string stops reordering.
+13. **Removed notifications** — Dashboard header bell icon + Settings → App → Notifications row (both dead placeholders).
+14. **App name & RTL** — App name always English + left-aligned even in Arabic (header wrapped in `Directionality.ltr`; `app_name` English-only in both locales). Plate display forced LTR via `displayPlate` LRI…PDI isolate (identical rendering in Arabic). Renamed app **"LPR Edge" → "Omni Park" → "Omni Parking"** app-wide (translations, splash, About, `MaterialApp.title`, Android `android:label`).
+15. **Settings header tweaks** — Removed the duplicate "Settings" title in the gradient card; "Customize your experience" centered + bold (size 22, single row via `FittedBox`). "Manage Zones" → **"Manage Garage"**; removed its "Zones, names & slots" subtitle.
+16. **Responsiveness** — Global `MaterialApp.builder`: text-scale clamp (0.85–1.2×) + center content at max 600px on wide screens (tablets/landscape). Keyboard-safe input screens (verification sheet scrollable); stat-card values overflow-proofed with `FittedBox`.
+17. **Dead-code cleanup** — Removed unused `GarageSettings.pushNotifications`/`autoOpenGate` and unused keys (`notifications`, `auto`, `garage_layout_subtitle`). (The 4 unused `domain/usecases` files were flagged; deletion was blocked by the harness, so they remain.)
+18. **RTL back arrows (app-wide)** — Removed the manual `isArabic ? arrow_forward : arrow_back` double-flip; back buttons now use plain `Icons.arrow_back` (auto-mirrors to → in Arabic), settings chevron `Icons.arrow_forward_ios`. Dropped the now-dead `isArabic`/`localeService`/`provider` imports those left behind.
+19. **Device-matched theme & locale** — On first launch (no saved pref) the app follows the device dark/light mode and language (Arabic phone → Arabic, else English). An explicit choice in Settings persists and wins.
+20. **Lazy model loading** — Models no longer load at startup; they load on first scanner open. `OnDeviceAiHelper.loadModel()` is now an idempotent awaitable lazy init; `recognizePlate()` awaits it. Scanner shows "Preparing scanner…" + a Try-Again on load failure. Removed the repo's eager `initialize()`/`_ai` field.
+21. **Light-theme card contrast** — `backgroundLight` `#F8F9FA` → `#EAEEF4` (clearer grey so white cards have an edge); added a soft shadow to `AppCard`.
+22. **Tap card → view ticket (new `SessionTicketScreen`)** — Tapping a session card in Recent Activity or History opens a read-only ticket: entry ticket for active sessions, entry **+** checkout (exit/duration/fee) for completed ones.
+23. **App launcher icon** — Added `flutter_launcher_icons` (dev dep + config); generated Android mipmaps from `assets/icon/app_icon.png`.
+24. **Git** — Repo now exists with remote `MohamedGa3fer/GP-app_Omni-Parking` (supersedes the "No git repo yet" note in §17).
+25. **OCR model V4 → V6** — Replaced `assets/plate_ocr.tflite` with the **EALPR V6 full-integer int8** model (8.3 MB, was ~30 MB float32). Decoder changes in `on_device_ai_helper.dart`: letter head `[1,3,19]`→`[1,3,18]` (removed `'ي'` → 17 letters + PAD@17), length heads `[1,2]`→`[1,4]`/`[1,3]` mapped by shape, length decode `+3`/`+2`→`+1`/`+1`, validity widened to 1–4 digits / 1–3 letters. Now runs the **int8 I/O path**; input quant / output dequant verified against the V6 migration report. The V6 report confirmed the existing 17-letter order (resolves the old "VERIFY with model author" caveat). ⚠️ Needs on-device verification (first time the int8 path runs; billing-critical).

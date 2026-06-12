@@ -759,39 +759,46 @@ class _DashboardBodyState extends State<_DashboardBody> {
   }
 
   Widget _buildEmptyState(BuildContext context, bool isDark) {
-    return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Container(
-            padding: const EdgeInsets.all(25),
-            decoration: BoxDecoration(
-              color: AppColors.surface(isDark),
-              borderRadius: BorderRadius.circular(20),
-            ),
-            child: const Icon(
-              Icons.directions_car_filled_outlined,
-              size: 60,
-              color: AppColors.textSecondary,
-            ),
+    // Centered when there's room; scrolls instead of overflowing when the body
+    // is squeezed (e.g. the keyboard opens).
+    return LayoutBuilder(
+      builder: (context, constraints) => SingleChildScrollView(
+        child: ConstrainedBox(
+          constraints: BoxConstraints(minHeight: constraints.maxHeight),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Container(
+                padding: const EdgeInsets.all(25),
+                decoration: BoxDecoration(
+                  color: AppColors.surface(isDark),
+                  borderRadius: BorderRadius.circular(20),
+                ),
+                child: const Icon(
+                  Icons.directions_car_filled_outlined,
+                  size: 60,
+                  color: AppColors.textSecondary,
+                ),
+              ),
+              const SizedBox(height: 20),
+              Text(
+                tr(context, 'parking_empty'),
+                style: const TextStyle(
+                  fontSize: 18,
+                  color: AppColors.textSecondary,
+                ),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                tr(context, 'tap_to_start'),
+                style: const TextStyle(
+                  color: AppColors.textSecondary,
+                  fontSize: 14,
+                ),
+              ),
+            ],
           ),
-          const SizedBox(height: 20),
-          Text(
-            tr(context, 'parking_empty'),
-            style: const TextStyle(
-              fontSize: 18,
-              color: AppColors.textSecondary,
-            ),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            tr(context, 'tap_to_start'),
-            style: const TextStyle(
-              color: AppColors.textSecondary,
-              fontSize: 14,
-            ),
-          ),
-        ],
+        ),
       ),
     );
   }
